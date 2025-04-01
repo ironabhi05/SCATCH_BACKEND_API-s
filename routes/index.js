@@ -6,11 +6,10 @@ const userModel = require("../models/user-model");
 const orderModel = require("../models/order-model");
 
 //User Create and Login Page
-router.get("/api", (req, res) => {
+router.get("/", (req, res) => {
   try {
     let error = req.flash("error");
-    const { loggedin = false } = req.session;
-    return res.render("index", { error, loggedin });
+    return res.send('API is running');
   } catch {
     return res.status(500).send("Hmmm! Something went wrong....");
   }
