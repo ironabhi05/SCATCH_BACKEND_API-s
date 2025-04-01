@@ -16,7 +16,7 @@ router.get("/", (req, res) => {
 });
 
 //User Home Screen for shopping
-router.get("/api/shop", async (req, res) => {
+router.get("/shop", async (req, res) => {
   try {
     const { loggedin = false, isAdminLoggedIn = false } = req.session;
     let products = await productModel.find();
