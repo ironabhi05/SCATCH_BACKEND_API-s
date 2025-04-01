@@ -11,8 +11,10 @@
   "description": "",
   "dependencies": {
     "bcrypt": "^5.1.1",
+    "cloudinary": "^1.41.3",
     "config": "^3.3.12",
     "connect-flash": "^0.1.1",
+    "connect-mongo": "^5.1.0",
     "cookie-parser": "^1.4.7",
     "debug": "^4.4.0",
     "dotenv": "^16.4.7",
@@ -22,7 +24,8 @@
     "jsonwebtoken": "^9.0.2",
     "method-override": "^3.0.0",
     "mongoose": "^8.9.5",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "multer-storage-cloudinary": "^4.0.0"
   },
   "devDependencies": {
     "cross-env": "^7.0.3"

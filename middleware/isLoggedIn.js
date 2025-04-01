@@ -5,7 +5,7 @@ module.exports = async (req, res, next) => {
   try {
     if (!req.cookies.token) {
       req.flash("error", "You need To login first");
-      return res.redirect("/api");
+      return res.redirect("/");
     }
     let decoded = jwt.verify(req.cookies.token, process.env.JWT_KEY);
     let user = await userModel
@@ -15,6 +15,6 @@ module.exports = async (req, res, next) => {
     next();
   } catch (err) {
     req.flash("Something Went Wrong");
-    return res.redirect("/api");
+    return res.redirect("/");
   }
 };

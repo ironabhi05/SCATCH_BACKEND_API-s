@@ -5,33 +5,36 @@ const productModel = require("../models/product-model");
 const userModel = require("../models/user-model");
 const orderModel = require("../models/order-model");
 
-//User Create and Login Page
-router.get("/", (req, res) => {
+router.get("/api", (req, res) => {
   try {
     let error = req.flash("error");
-    return res.send('API is running');
-  } catch {
-    return res.status(500).send("Hmmm! Something went wrong....");
+    
+    // Send a success response
+    return res.status(200).json({
+      message: "API is running",
+      error: error || null
+    });
+  } catch (err) {
+    return res.status(500).json({
+      message: "Hmmm! Something went wrong....",
+      error: err.message || "Internal Server Error"
+    });
   }
 });
 
+
 //User Home Screen for shopping
-router.get("/shop", async (req, res) => {
+router.get("/api/shop", async (req, res) => {
   try {
     const { loggedin = false, isAdminLoggedIn = false } = req.session;
     let products = await productModel.find();
     let success = req.flash("success");
     let error = req.flash("error");
 
-    return res.json({
-      products,
-      success,
-      error,
-      isAdminLoggedIn,
-      loggedin,
+    return res.status(200).json({
+      products
     });
   } catch (error) {
-    console.error("Error fetching shop data:", error);
     return res.status(500).json({ message: "Hmmm! Something went wrong...." });
   }
 });
@@ -40,9 +43,8 @@ router.get("/shop", async (req, res) => {
 router.get("/api/shop/:productid", async (req, res) => {
   try {
     const { loggedin = false, isAdminLoggedIn = false } = req.session;
-    const { productid } = req.params; 
+    const { productid } = req.params;
 
-  
     let productDetails = await productModel.findById(productid);
     if (!productDetails) {
       return res.status(404).json({ message: "Product not found" });
@@ -51,15 +53,14 @@ router.get("/api/shop/:productid", async (req, res) => {
     let success = req.flash("success");
     let error = req.flash("error");
 
-    return res.json({
-      product: productDetails, 
+    return res.status(200).json({
+      product: productDetails,
       success,
       error,
       isAdminLoggedIn,
       loggedin,
     });
   } catch (error) {
-    console.error("Error fetching product:", error);
     return res.status(500).json({ message: "Error fetching product details" });
   }
 });
@@ -71,10 +72,10 @@ router.get("/api/addtocart/:productid", isLoggedIn, async (req, res) => {
     user.cart.push(req.params.productid);
     await user.save();
     req.flash("success", "Item Added To Your Cart");
-    return res.redirect("/shop");
+    return res.send("get add to cart Route");
   } catch {
     req.flash("error", "Hmmm! Something went wrong....");
-    return res.redirect("/shop");
+    return res.status(500).send("Hmmm! Can't Reach...");
   }
 });
 

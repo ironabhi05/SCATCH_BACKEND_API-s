@@ -1,7 +1,5 @@
 const express = require("express");
 const router = express.Router();
-const ownerModel = require("../models/owner-model");
-const bcrypt = require("bcrypt");
 const { createOwner, adminLogin } = require("../controllers/authController");
 const userModel = require("../models/user-model");
 const isAdminLoggedIn = require("../middleware/isAdminLoggedIn");
@@ -15,17 +13,32 @@ if (process.env.NODE_ENV === "development") {
 router.post("/admin/login", adminLogin);
 
 router.get("/admin/logout", isAdminLoggedIn, (req, res) => {
-  res.clearCookie("token", "");
-  res.redirect("/owners/admin/login");
+  // Clear the authentication token cookie
+  res.clearCookie("token", { path: "/" });
+
+  // If using sessions, destroy the session to log out the user
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).send("Error clearing session.");
+    }
+
+    // Redirect with a flash message indicating the user has been logged out
+    req.flash("success", "You have been logged out successfully.");
+    return res.redirect("/owners/admin/login");
+  });
 });
 
 router.get("/admin/login", (req, res) => {
-  let error = req.flash("error");
-  const { loggedin = false } = req.session;
-  return res.json({
-    error: error || null,
-    loggedin: loggedin,
-  });
+  try {
+    let error = req.flash("error");
+    const { loggedin = false } = req.session;
+    return res.json({
+      error: error || null,
+      loggedin: loggedin,
+    });
+  } catch (err) {
+    return res.status(500).send("Internal Server Error", err);
+  }
 });
 
 router.get("/admin/panel", isAdminLoggedIn, async (req, res) => {
@@ -93,8 +106,23 @@ router.get("/admin/users", isAdminLoggedIn, async (req, res) => {
 
 router.delete("/delete-user/:userid", isAdminLoggedIn, async (req, res) => {
   const { userid } = req.params;
-  await userModel.findByIdAndDelete(userid);
-  res.redirect("/owners/admin/panel");
+
+  try {
+    // Attempt to delete the user by their ID
+    const user = await userModel.findByIdAndDelete(userid);
+
+    // If no user was found with that ID, send a 404 error
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+
+    // Redirect to the admin panel if the deletion was successful
+    return res.status(200).send("User Deleted");
+  } catch (err) {
+    // Log the error and send a 500 error in case of any server issues
+    console.error(err);
+    return res.status(500).send("Internal Server Error");
+  }
 });
 
 router.delete(
@@ -102,8 +130,22 @@ router.delete(
   isAdminLoggedIn,
   async (req, res) => {
     const { productid } = req.params;
-    await productModel.findByIdAndDelete(productid);
-    res.redirect("/shop");
+
+    try {
+      // Find and delete the product by its ID
+      const product = await productModel.findByIdAndDelete(productid);
+
+      // If the product doesn't exist
+      if (!product) {
+        return res.status(404).send("Product not found");
+      }
+
+      // Redirect to the shop page if successful
+      return res.status(200).send("Product Deleted");
+    } catch (err) {
+      console.error(err);
+      return res.status(500).send("Internal Server Error");
+    }
   }
 );
 

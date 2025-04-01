@@ -9,27 +9,34 @@ const productRouter = require("./routes/productRouter");
 const userRouter = require("./routes/userRouter");
 const indexRouter = require("./routes/index");
 const flash = require("connect-flash");
-const expressSession = require("express-session");
+const session = require("express-session");
 const methodOverride = require("method-override");
+const MongoStore = require("connect-mongo");
 const PORT = process.env.PORT || 5000;
 require("dotenv").config();
 
-// Establish MongoDB connection
+
 connectDB();
 
 
 app.use(
-  expressSession({
+  session({
     resave: false,
     saveUninitialized: false,
     secret: process.env.EXPRESS_SESSION_SECRET,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 3600000,
+      secure: process.env.NODE_ENV === "production", // Only set secure cookies in production
+      maxAge: 3600000, // 1 hour
     },
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGODB_URI,  // Using the correct MongoDB URI from the environment variable
+      ttl: 14 * 24 * 60 * 60,  // Session TTL (optional)
+    }),
   })
 );
+
+
 app.use(flash());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -50,5 +57,5 @@ app.use("/", indexRouter);
 // });
 console.log(process.env.NODE_ENV);
 app.listen(PORT, () => {  
-  dbgr(`🌐Server is running on Port ${PORT}📡🚀🚀🚀`);
+  console.log(`🌐Server is running on Port ${PORT}📡🚀🚀🚀`);
 });

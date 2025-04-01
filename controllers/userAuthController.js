@@ -53,13 +53,27 @@ module.exports.userLogin = async (req, res) => {
 
 module.exports.getUser = (req, res) => {
   if (req.user) {
-    return res.render("userDashboard", { user: req.user });
+    return res.status(200).json({
+      message: "User found",
+      user: req.user,
+    });
   } else {
-    return res.redirect("/api");
+    return res.status(401).json({
+      message: "Unauthorized access. Please log in.",
+    });
   }
 };
 
 module.exports.userLogout = (req, res) => {
-  res.clearCookie("token", "");
-  res.redirect("/api");
+  try {
+    res.clearCookie("token", { path: "/", httpOnly: true });
+    return res.status(200).json({
+      message: "You have been logged out successfully.",
+    });
+  } catch (err) {
+    return res.status(500).json({
+      message: "Something went wrong while logging out.",
+      error: err.message || "Internal Server Error",
+    });
+  }
 };

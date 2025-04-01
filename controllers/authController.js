@@ -4,28 +4,43 @@ const { generateAdminToken } = require("../utils/generateAdminToken");
 
 module.exports.createOwner = async (req, res) => {
   try {
-    let owner = await ownerModel.find();
-    if (owner.length > 0) {
-      return res.status(401).json({ message: "Sorry you can't create owner" });
+    const existingOwner = await ownerModel.findOne({ email: req.body.email });
+    if (existingOwner) {
+      return res.status(400).json({ message: "Email is already taken." });
     }
+
     let { fullname, password, email } = req.body;
-    bcrypt.genSalt(10, (err, salt) => {
-      bcrypt.hash(password, salt, async (err, hash) => {
-        if (err) {
-          return res.status(500).send(err.message);
-        }
-        let newOwner = await ownerModel.create({
-          fullname,
-          password: hash,
-          email,
-        });
-        let token = generateAdminToken(newOwner);
-        res.cookie("token", token);
-        return res.status(200).send(newOwner);
-      });
+
+    // Hash the password using bcrypt with async/await
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create a new owner
+    let newOwner = await ownerModel.create({
+      fullname,
+      password: hashedPassword,
+      email,
+    });
+
+    // Generate the admin token
+    let token = generateAdminToken(newOwner);
+
+    // Set the token in a secure cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", // Set to `true` if using HTTPS
+      maxAge: 1000 * 60 * 60 * 24, // 1 day expiry for the cookie (adjust as needed)
+    });
+
+    // Return the new owner object (you can omit the password)
+    newOwner.password = undefined;
+
+    return res.status(200).json({
+      message: "Owner created successfully",
+      owner: newOwner,
     });
   } catch (err) {
-    return res.status(500).json({ error: "Internal Server Error" });
+    return res.status(500).json({ message: "Internal Server Error", error: err.message });
   }
 };
 
@@ -43,7 +58,7 @@ module.exports.adminLogin = async (req, res) => {
       res.cookie("token", token);
       req.session.loggedin = true;
       req.session.adminLoggedin = true;
-      return res.redirect("/api/owners/admin/panel");
+      return res.redirect("/admin/users");
     } else {
       req.flash("error", "Email or Password incorrect");
       return res.redirect("/api/owners/admin/login");
