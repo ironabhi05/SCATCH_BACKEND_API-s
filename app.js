@@ -57,5 +57,5 @@ app.use("/", indexRouter);
 // });
 console.log(process.env.NODE_ENV);
 app.listen(PORT, () => {  
-  console.log(`🌐Server is running on Port ${PORT}📡🚀🚀🚀`);
+  dbgr(`🌐Server is running on Port ${PORT}📡🚀🚀🚀`);
 });

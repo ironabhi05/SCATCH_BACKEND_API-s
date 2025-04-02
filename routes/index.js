@@ -35,6 +35,24 @@ router.get("/api/scatch-products", async (req, res) => {
   }
 });
 
+router.get("/api/scatch-products/:id", async (req, res) => {
+  try {
+    const { id } = req.params; // Get the product ID from URL params
+
+    // Find the product by ID in the database
+    const product = await productModel.findById(id);
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found!" });
+    }
+
+    return res.status(200).json({ product });
+  } catch (error) {
+    return res.status(500).json({ message: "Hmmm! Something went wrong...." });
+  }
+});
+
+
 //Show One Product item
 router.get("/api/shop/:productid", async (req, res) => {
   try {
