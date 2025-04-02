@@ -7,8 +7,6 @@ const orderModel = require("../models/order-model");
 
 router.get("/api", (req, res) => {
   try {
-    let error = req.flash("error");
-    
     // Send a success response
     return res.status(200).json({
       message: "API is running",
@@ -24,12 +22,10 @@ router.get("/api", (req, res) => {
 
 
 //User Home Screen for shopping
-router.get("/api/shop", async (req, res) => {
+router.get("/api/scatch-products", async (req, res) => {
   try {
     const { loggedin = false, isAdminLoggedIn = false } = req.session;
     let products = await productModel.find();
-    let success = req.flash("success");
-    let error = req.flash("error");
 
     return res.status(200).json({
       products

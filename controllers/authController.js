@@ -45,23 +45,42 @@ module.exports.createOwner = async (req, res) => {
 };
 
 module.exports.adminLogin = async (req, res) => {
-  let { email, password } = req.body;
-  let isAdmin = await ownerModel.findOne({ email: email });
-  if (!isAdmin) {
-    req.flash("error", "Email or Password Incorrect");
-    return res.status(400).json({ message: "Email or Password Incorrect" });
-  }
-  bcrypt.compare(password, isAdmin.password, (err, result) => {
-    if (result) {
-      let token = generateAdminToken(isAdmin);
-      req.flash("success", "Welcome Admin");
-      res.cookie("token", token);
-      req.session.loggedin = true;
-      req.session.adminLoggedin = true;
-      return res.redirect("/admin/users");
-    } else {
-      req.flash("error", "Email or Password incorrect");
-      return res.redirect("/api/owners/admin/login");
+  try {
+    let { email, password } = req.body;
+
+    // Check if admin exists
+    let isAdmin = await ownerModel.findOne({ email });
+    if (!isAdmin) {
+      return res.status(400).json({ message: "Email or Password Incorrect" });
     }
-  });
+
+    // Compare passwords using async/await
+    const passwordMatch = await bcrypt.compare(password, isAdmin.password);
+    if (!passwordMatch) {
+      return res.status(400).json({ message: "Email or Password Incorrect" });
+    }
+
+    // Generate JWT token
+    let token = generateAdminToken(isAdmin);
+
+    // Set token as a secure HTTP-only cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", // Secure cookie in production
+      sameSite: "strict",
+      maxAge: 7200000, // 2 hours
+    });
+
+    return res.status(200).json({
+      message: "Admin login successful",
+      admin: {
+        id: isAdmin._id,
+        email: isAdmin.email,
+        role: "admin",
+      },
+      token,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: "Internal Server Error", error: err.message });
+  }
 };

@@ -3,18 +3,22 @@ const jwt = require("jsonwebtoken");
 
 module.exports = async (req, res, next) => {
   try {
-    if (!req.cookies.token) {
-      req.flash("error", "You need To login first");
-      return res.redirect("/");
+    const token = req.cookies.token || req.headers.authorization?.split(" ")[1]; // Support both cookies & headers
+
+    if (!token) {
+      return res.status(401).json({ message: "Access denied. Please log in." });
     }
-    let decoded = jwt.verify(req.cookies.token, process.env.JWT_KEY);
-    let user = await userModel
-      .findOne({ email: decoded.email })
-      .select("-password");
+
+    const decoded = jwt.verify(token, process.env.JWT_KEY);
+    const user = await userModel.findById(decoded.userId).select("-password"); // Use _id instead of email
+
+    if (!user) {
+      return res.status(401).json({ message: "Invalid token. User not found." });
+    }
+
     req.user = user;
     next();
   } catch (err) {
-    req.flash("Something Went Wrong");
-    return res.redirect("/");
+    return res.status(401).json({ message: "Invalid or expired token. Please log in again." });
   }
 };

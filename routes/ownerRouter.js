@@ -46,18 +46,15 @@ router.get("/admin/panel", isAdminLoggedIn, async (req, res) => {
     let products = await productModel.find();
     let users = await userModel.find();
     let orders = await orderModel.find();
-    let success = req.flash("success");
     const { loggedin = false } = req.session;
     return res.json({
-      success: success || null,
       loggedin: loggedin,
       products: products,
       users: users,
       orders: orders,
     });
   } catch {
-    console.error("Error fetching user orders:", error);
-    res.status(500).send("Internal Server Error");
+    return res.status(500).send("Internal Server Error");
   }
 });
 
@@ -99,8 +96,7 @@ router.get("/admin/users", isAdminLoggedIn, async (req, res) => {
       users: users,
     });
   } catch (error) {
-    console.error("Error fetching user orders:", error);
-    res.status(500).send("Internal Server Error");
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
@@ -113,21 +109,19 @@ router.delete("/delete-user/:userid", isAdminLoggedIn, async (req, res) => {
 
     // If no user was found with that ID, send a 404 error
     if (!user) {
-      return res.status(404).send("User not found");
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Redirect to the admin panel if the deletion was successful
-    return res.status(200).send("User Deleted");
+    return res.status(200).json({ message: "User Deleted", user });
   } catch (err) {
-    // Log the error and send a 500 error in case of any server issues
-    console.error(err);
-    return res.status(500).send("Internal Server Error");
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
 router.delete(
   "/delete-product/:productid",
-  isAdminLoggedIn,
+
   async (req, res) => {
     const { productid } = req.params;
 
@@ -137,14 +131,16 @@ router.delete(
 
       // If the product doesn't exist
       if (!product) {
-        return res.status(404).send("Product not found");
+        return res.status(404).json({ message: "Product not found" });
       }
 
       // Redirect to the shop page if successful
-      return res.status(200).send("Product Deleted");
+      return res
+        .status(200)
+        .json({ message: "Product Deleted", product: product });
     } catch (err) {
       console.error(err);
-      return res.status(500).send("Internal Server Error");
+      return res.status(500).json({ message: "Internal Server Error" });
     }
   }
 );

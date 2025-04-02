@@ -3,18 +3,22 @@ const jwt = require("jsonwebtoken");
 
 module.exports = async (req, res, next) => {
   try {
-    if (!req.cookies.token) {
-      req.flash("error", "You need To login first");
-      return res.redirect("/api/owners/admin/login");
+    const token = req.cookies.token || req.headers.authorization?.split(" ")[1]; // Support both cookies & headers
+
+    if (!token) {
+      return res.status(401).json({ message: "Access denied. Please log in as admin." });
     }
-    let decoded = jwt.verify(req.cookies.token, process.env.JWT_ADMIN_KEY);
-    let admin = await ownerModel
-      .findOne({ email: decoded.email })
-      .select("-password");
+
+    const decoded = jwt.verify(token, process.env.JWT_ADMIN_KEY);
+    const admin = await ownerModel.findById(decoded.adminId).select("-password"); // Use _id instead of email
+
+    if (!admin) {
+      return res.status(401).json({ message: "Invalid token. Admin not found." });
+    }
+
     req.admin = admin;
     next();
   } catch (err) {
-    req.flash("Something Went Wrong");
-    return res.redirect("/api/owners/admin/login");
+    return res.status(401).json({ message: "Invalid or expired token. Please log in again." });
   }
 };

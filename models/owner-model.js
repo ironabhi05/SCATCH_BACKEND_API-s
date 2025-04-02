@@ -12,9 +12,6 @@ const ownerSchema = mongoose.Schema({
   password: {
     type: String,
   },
-  picture: {
-    type: String,
-  },
 });
 
 module.exports = mongoose.model("Owner", ownerSchema);
