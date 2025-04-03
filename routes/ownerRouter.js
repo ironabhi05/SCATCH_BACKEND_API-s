@@ -121,7 +121,7 @@ router.delete("/delete-user/:userid", isAdminLoggedIn, async (req, res) => {
 
 router.delete(
   "/delete-product/:productid",
-
+  isAdminLoggedIn,
   async (req, res) => {
     const { productid } = req.params;
 

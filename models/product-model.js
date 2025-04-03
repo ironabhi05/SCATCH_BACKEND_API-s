@@ -43,6 +43,12 @@ const productSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  category: {
+    type: String,
+    enum: ["Travel", "Backpacks", "School Bags", "Handbags", "Laptop Bags"],
+    default: "Backpacks",
+    required: true,
+  },
   material: {
     type: String,
   },
