@@ -12,7 +12,7 @@ router.post("/register", createUser);
 
 router.post("/login", userLogin);
 
-router.get("/logout", isLoggedIn, userLogout);
+router.post("/logout", isLoggedIn, userLogout);
 
 router.get("/profile", isLoggedIn, getUser);
 

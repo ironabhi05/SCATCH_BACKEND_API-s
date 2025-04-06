@@ -12,10 +12,10 @@ if (process.env.NODE_ENV === "development") {
 
 router.post("/admin/login", adminLogin);
 
-router.get("/admin/logout", isAdminLoggedIn, (req, res) => {
+router.post("/admin/logout", isAdminLoggedIn, (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
     sameSite: "None",
     path: "/",
   });

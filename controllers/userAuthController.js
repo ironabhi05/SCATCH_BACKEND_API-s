@@ -31,7 +31,7 @@ module.exports.createUser = async (req, res) => {
     // Set token as a cookie (secure options added)
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: true,
       sameSite: "None",
       maxAge: 3600000, // 1 hour
     });
@@ -68,7 +68,7 @@ module.exports.userLogin = async (req, res) => {
     // Set token as cookie
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: true,
       sameSite: "None",
       path: "/",
     });
@@ -130,7 +130,7 @@ module.exports.userLogout = (req, res) => {
     res.clearCookie("token", {
       path: "/",
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: true,
       sameSite: "None",
     });
 

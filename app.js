@@ -8,7 +8,6 @@ const ownerRouter = require("./routes/ownerRouter");
 const productRouter = require("./routes/productRouter");
 const userRouter = require("./routes/userRouter");
 const indexRouter = require("./routes/index");
-const flash = require("connect-flash");
 const session = require("express-session");
 const methodOverride = require("method-override");
 const MongoStore = require("connect-mongo");
@@ -35,7 +34,6 @@ app.use(
   })
 );
 
-app.use(flash());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

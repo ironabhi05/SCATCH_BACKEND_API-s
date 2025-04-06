@@ -28,7 +28,7 @@ module.exports.createOwner = async (req, res) => {
     // Set the token in a secure cookie
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // true in production (HTTPS)
+      secure: true,
       sameSite: "None", // Allow sending cookies across domains
       maxAge: 1000 * 60 * 60 * 24, // 1 day
       path: "/", // Ensures it's available across all routes
