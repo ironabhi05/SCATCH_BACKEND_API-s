@@ -68,9 +68,9 @@ module.exports.adminLogin = async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // only works with HTTPS
-      sameSite: "None", // allows cookies across different domains
-      maxAge: 7200000, // 2 hours
+      secure: true,
+      sameSite: "None", 
+      expires: new Date(0),
     });
     
 
