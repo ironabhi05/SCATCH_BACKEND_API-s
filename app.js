@@ -12,12 +12,11 @@ const flash = require("connect-flash");
 const session = require("express-session");
 const methodOverride = require("method-override");
 const MongoStore = require("connect-mongo");
+const cors = require("cors");
 const PORT = process.env.PORT || 5000;
 require("dotenv").config();
 
-
 connectDB();
-
 
 app.use(
   session({
@@ -30,12 +29,11 @@ app.use(
       maxAge: 3600000, // 1 hour
     },
     store: MongoStore.create({
-      mongoUrl: process.env.MONGODB_URI,  // Using the correct MongoDB URI from the environment variable
-      ttl: 14 * 24 * 60 * 60,  // Session TTL (optional)
+      mongoUrl: process.env.MONGODB_URI, // Using the correct MongoDB URI from the environment variable
+      ttl: 14 * 24 * 60 * 60, // Session TTL (optional)
     }),
   })
 );
-
 
 app.use(flash());
 app.use(express.json());
@@ -46,16 +44,22 @@ app.use(cookieParser());
 app.use(methodOverride("_method"));
 // app.set("view engine", "ejs");
 
+app.use(
+  cors({
+    origin: "https://scatch-mart.netlify.app", // frontend domain
+    credentials: true, 
+  })
+);
+
 app.use("/api/owners", ownerRouter);
 app.use("/api/users", userRouter);
 app.use("/api/products", productRouter);
 app.use("/", indexRouter);
 
-
 // app.get("*", (req, res) => {
 //   res.sendFile(path.join(__dirname, "frontend/build", "index.html"));
 // });
 console.log(process.env.NODE_ENV);
-app.listen(PORT, () => {  
+app.listen(PORT, () => {
   dbgr(`🌐Server is running on Port ${PORT}📡🚀🚀🚀`);
 });

@@ -32,6 +32,7 @@ module.exports.createUser = async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
+      sameSite: "None",
       maxAge: 3600000, // 1 hour
     });
 
@@ -68,9 +69,8 @@ module.exports.userLogin = async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
-      maxAge: 3600000, // 1 hour
-      path: "/", // Ensure same path for logout to clear it
+      sameSite: "None",
+      path: "/",
     });
 
     return res.status(200).json({
@@ -91,7 +91,6 @@ module.exports.userLogin = async (req, res) => {
     });
   }
 };
-
 
 module.exports.getUser = async (req, res) => {
   try {
@@ -129,10 +128,10 @@ module.exports.userLogout = (req, res) => {
 
     // Explicitly clear the token cookie with exact same options used when setting it
     res.clearCookie("token", {
-      path: "/", // Must match exactly
+      path: "/",
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Must match how it was set
-      sameSite: "Strict", // Use capital 'S' for consistency, though not case-sensitive
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "None",
     });
 
     return res.status(200).json({
@@ -145,4 +144,3 @@ module.exports.userLogout = (req, res) => {
     });
   }
 };
-

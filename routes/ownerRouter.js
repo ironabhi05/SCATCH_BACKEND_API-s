@@ -13,18 +13,19 @@ if (process.env.NODE_ENV === "development") {
 router.post("/admin/login", adminLogin);
 
 router.get("/admin/logout", isAdminLoggedIn, (req, res) => {
-  // Clear the authentication token cookie
-  res.clearCookie("token", { path: "/" });
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "None",
+    path: "/",
+  });
 
-  // If using sessions, destroy the session to log out the user
   req.session.destroy((err) => {
     if (err) {
       return res.status(500).send("Error clearing session.");
     }
 
-    // Redirect with a flash message indicating the user has been logged out
-    req.flash("success", "You have been logged out successfully.");
-    return res.redirect("/owners/admin/login");
+    return res.status(200).json({ message: "Logout successful" });
   });
 });
 

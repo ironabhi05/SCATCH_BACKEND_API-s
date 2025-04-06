@@ -28,9 +28,12 @@ module.exports.createOwner = async (req, res) => {
     // Set the token in a secure cookie
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Set to `true` if using HTTPS
-      maxAge: 1000 * 60 * 60 * 24, // 1 day expiry for the cookie (adjust as needed)
+      secure: process.env.NODE_ENV === "production", // true in production (HTTPS)
+      sameSite: "None", // Allow sending cookies across domains
+      maxAge: 1000 * 60 * 60 * 24, // 1 day
+      path: "/", // Ensures it's available across all routes
     });
+    
 
     // Return the new owner object (you can omit the password)
     newOwner.password = undefined;
@@ -63,13 +66,13 @@ module.exports.adminLogin = async (req, res) => {
     // Generate JWT token
     let token = generateAdminToken(isAdmin);
 
-    // Set token as a secure HTTP-only cookie
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Secure cookie in production
-      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production", // only works with HTTPS
+      sameSite: "None", // allows cookies across different domains
       maxAge: 7200000, // 2 hours
     });
+    
 
     return res.status(200).json({
       message: "Admin login successful",
