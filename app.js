@@ -44,12 +44,25 @@ app.use(cookieParser());
 app.use(methodOverride("_method"));
 // app.set("view engine", "ejs");
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://scatch-mart.netlify.app"
+];
+
 app.use(
   cors({
-    origin: "https://scatch-mart.netlify.app", // frontend domain
-    credentials: true, 
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
   })
 );
+
 
 app.use("/api/owners", ownerRouter);
 app.use("/api/users", userRouter);
