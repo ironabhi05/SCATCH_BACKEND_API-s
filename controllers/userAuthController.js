@@ -47,28 +47,30 @@ module.exports.createUser = async (req, res) => {
 
 module.exports.userLogin = async (req, res) => {
   try {
-    let { email, password } = req.body;
+    const { email, password } = req.body;
 
     // Check if user exists
-    let isUser = await userModel.findOne({ email });
+    const isUser = await userModel.findOne({ email });
     if (!isUser) {
       return res.status(400).json({ message: "Invalid email or password!" });
     }
 
-    // Compare the hashed password
+    // Compare hashed password
     const isMatch = await bcrypt.compare(password, isUser.password);
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid email or password!" });
     }
 
     // Generate JWT token
-    let token = generateToken(isUser);
+    const token = generateToken(isUser);
 
-    // Set token as a cookie
+    // Set token as cookie
     res.cookie("token", token, {
-      httpOnly: true, // Prevents XSS attacks
-      secure: process.env.NODE_ENV === "production", // Only in HTTPS for production
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
       maxAge: 3600000, // 1 hour
+      path: "/", // Ensure same path for logout to clear it
     });
 
     return res.status(200).json({
@@ -83,11 +85,13 @@ module.exports.userLogin = async (req, res) => {
       token,
     });
   } catch (err) {
-    return res
-      .status(500)
-      .json({ message: "Internal Server Error", error: err.message });
+    return res.status(500).json({
+      message: "Internal Server Error",
+      error: err.message,
+    });
   }
 };
+
 
 module.exports.getUser = async (req, res) => {
   try {
@@ -117,17 +121,18 @@ module.exports.getUser = async (req, res) => {
 
 module.exports.userLogout = (req, res) => {
   try {
-    const token = req.cookies.token; 
+    const token = req.cookies.token;
 
     if (!token) {
       return res.status(200).json({ message: "You are already logged out." });
     }
 
+    // Explicitly clear the token cookie with exact same options used when setting it
     res.clearCookie("token", {
-      path: "/",
+      path: "/", // Must match exactly
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", 
-      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production", // Must match how it was set
+      sameSite: "Strict", // Use capital 'S' for consistency, though not case-sensitive
     });
 
     return res.status(200).json({
