@@ -71,7 +71,7 @@ module.exports.userLogin = async (req, res) => {
       secure: true,
       sameSite: "None",
       path: "/",
-      expires: new Date(0),
+      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // ✅ 7 days from now
     });
 
     return res.status(200).json({
@@ -127,12 +127,12 @@ module.exports.userLogout = (req, res) => {
       return res.status(200).json({ message: "You are already logged out." });
     }
 
-    // Explicitly clear the token cookie with exact same options used when setting it
     res.clearCookie("token", {
-      path: "/",
       httpOnly: true,
       secure: true,
       sameSite: "None",
+      path: "/",
+      maxAge: 0, // Force immediate removal
     });
 
     return res.status(200).json({
