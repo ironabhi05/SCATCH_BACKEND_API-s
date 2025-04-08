@@ -10,7 +10,8 @@ module.exports = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_KEY);
-    const user = await userModel.findById(decoded.userId).select("-password"); // Use _id instead of email
+    const user = await userModel.findById(decoded.id).select("-password");
+    
 
     if (!user) {
       return res.status(401).json({ message: "Invalid token. User not found." });

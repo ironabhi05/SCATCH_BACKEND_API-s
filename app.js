@@ -13,23 +13,27 @@ const methodOverride = require("method-override");
 const MongoStore = require("connect-mongo");
 const cors = require("cors");
 const PORT = process.env.PORT || 5000;
-require("dotenv").config();
+require("dotenv").config({
+  path: `.env.${process.env.NODE_ENV || "development"}`
+});
 
 connectDB();
 
+
 app.use(
   session({
+    secret: process.env.EXPRESS_SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    secret: process.env.EXPRESS_SESSION_SECRET,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Only set secure cookies in production
-      maxAge: 3600000, // 1 hour
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      maxAge: 1000 * 60 * 60, // 1 hour
     },
     store: MongoStore.create({
-      mongoUrl: process.env.MONGODB_URI, // Using the correct MongoDB URI from the environment variable
-      ttl: 14 * 24 * 60 * 60, // Session TTL (optional)
+      mongoUrl: process.env.MONGODB_URI,
+      ttl: 14 * 24 * 60 * 60, // 14 days
     }),
   })
 );
@@ -37,15 +41,12 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-// Serve static files from React build
-// app.use(express.static(path.join(__dirname, "frontend/build")));
 app.use(methodOverride("_method"));
-// app.set("view engine", "ejs");
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "http://localhost:5174",
-  "https://scatch-mart.netlify.app"
+  "https://scatch-mart.netlify.app",
+  process.env.CLIENT_URL,
 ];
 
 app.use(
@@ -61,7 +62,6 @@ app.use(
   })
 );
 
-
 app.use("/api/owners", ownerRouter);
 app.use("/api/users", userRouter);
 app.use("/api/products", productRouter);
@@ -70,7 +70,7 @@ app.use("/", indexRouter);
 // app.get("*", (req, res) => {
 //   res.sendFile(path.join(__dirname, "frontend/build", "index.html"));
 // });
-console.log(process.env.NODE_ENV);
+
 app.listen(PORT, () => {
   dbgr(`🌐Server is running on Port ${PORT}📡🚀🚀🚀`);
 });

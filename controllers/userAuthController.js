@@ -68,10 +68,10 @@ module.exports.userLogin = async (req, res) => {
     // Set token as cookie
     res.cookie("token", token, {
       httpOnly: true,
-      secure: true,
-      sameSite: "None",
+      secure: process.env.NODE_ENV === "production", // ✅ prod me HTTPS only
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax", // ✅ cross-site ke liye "None", warna "Lax"
       path: "/",
-      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // ✅ 7 days from now
+      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // ✅ 7 din valid
     });
 
     return res.status(200).json({
@@ -129,10 +129,9 @@ module.exports.userLogout = (req, res) => {
 
     res.clearCookie("token", {
       httpOnly: true,
-      secure: true,
-      sameSite: "None",
-      path: "/",
-      maxAge: 0, // Force immediate removal
+      secure: process.env.NODE_ENV === "production", // 👈 only true in prod
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      path: "/", // 👈 same as used while setting cookie
     });
 
     return res.status(200).json({
