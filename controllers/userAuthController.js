@@ -31,9 +31,10 @@ module.exports.createUser = async (req, res) => {
     // Set token as a cookie (secure options added)
     res.cookie("token", token, {
       httpOnly: true,
-      secure: true,
-      sameSite: "None",
-      maxAge: 3600000, // 1 hour
+      secure: process.env.NODE_ENV === "production", // ✅ prod me HTTPS only
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax", // ✅ cross-site ke liye "None", warna "Lax"
+      path: "/",
+      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // ✅ 7 din valid
     });
 
     return res

@@ -8,7 +8,7 @@ const {
   getUser,
 } = require("../controllers/userAuthController");
 
-router.post("/register", createUser);
+router.post("/create", createUser);
 
 router.post("/login", userLogin);
 
