@@ -41,9 +41,7 @@ module.exports.createUser = async (req, res) => {
       .status(201)
       .json({ message: "User created successfully!", user: newUser, token });
   } catch (err) {
-    return res
-      .status(500)
-      .json({ message: "Internal Server Error", error: err.message });
+    return res.status(500).json(err);
   }
 };
 
@@ -87,10 +85,7 @@ module.exports.userLogin = async (req, res) => {
       token,
     });
   } catch (err) {
-    return res.status(500).json({
-      message: "Internal Server Error",
-      error: err.message,
-    });
+    return res.status(500).json(err);
   }
 };
 
@@ -113,10 +108,7 @@ module.exports.getUser = async (req, res) => {
       },
     });
   } catch (err) {
-    return res.status(500).json({
-      message: "Internal Server Error",
-      error: err.message,
-    });
+    return res.status(500).json(err);
   }
 };
 

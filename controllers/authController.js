@@ -33,7 +33,6 @@ module.exports.createOwner = async (req, res) => {
       maxAge: 1000 * 60 * 60 * 24, // 1 day
       path: "/", // Ensures it's available across all routes
     });
-    
 
     // Return the new owner object (you can omit the password)
     newOwner.password = undefined;
@@ -43,7 +42,7 @@ module.exports.createOwner = async (req, res) => {
       owner: newOwner,
     });
   } catch (err) {
-    return res.status(500).json({ message: "Internal Server Error", error: err.message });
+    return res.status(500).json(err);
   }
 };
 
@@ -69,10 +68,9 @@ module.exports.adminLogin = async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: true,
-      sameSite: "None", 
+      sameSite: "None",
       expires: new Date(0),
     });
-    
 
     return res.status(200).json({
       message: "Admin login successful",
@@ -84,6 +82,6 @@ module.exports.adminLogin = async (req, res) => {
       token,
     });
   } catch (err) {
-    return res.status(500).json({ message: "Internal Server Error", error: err.message });
+    return res.status(500).json(err);
   }
 };

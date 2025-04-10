@@ -101,25 +101,6 @@ router.get("/admin/users", isAdminLoggedIn, async (req, res) => {
   }
 });
 
-router.delete("/delete-user/:userid", isAdminLoggedIn, async (req, res) => {
-  const { userid } = req.params;
-
-  try {
-    // Attempt to delete the user by their ID
-    const user = await userModel.findByIdAndDelete(userid);
-
-    // If no user was found with that ID, send a 404 error
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Redirect to the admin panel if the deletion was successful
-    return res.status(200).json({ message: "User Deleted", user });
-  } catch (err) {
-    return res.status(500).json({ message: "Internal Server Error" });
-  }
-});
-
 router.delete(
   "/delete-product/:productid",
   isAdminLoggedIn,
