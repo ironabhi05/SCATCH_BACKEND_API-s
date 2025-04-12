@@ -50,43 +50,62 @@ router.get("/api/scatch-products/:id", async (req, res) => {
   }
 });
 
-
-
-
-
-
-
-
-
-
-//Need to be correct
 //Add items to cart Page
-// router.get("/api/addtocart/:productid", isLoggedIn, async (req, res) => {
-//   try {
-//     let user = await userModel.findOne({ email: req.user.email });
-//     user.cart.push(req.params.productid);
-//     await user.save();
-//     return res.send("get add to cart Route");
-//   } catch {
-//     req.flash("error", "Hmmm! Something went wrong....");
-//     return res.status(500).send("Hmmm! Can't Reach...");
-//   }
-// });
-
-router.get("/api/cart", isLoggedIn, async (req, res) => {
+router.post("/api/addtocart/", isLoggedIn, async (req, res) => {
   try {
-    let user = await userModel
-      .findOne({ email: req.user.email })
-      .populate("cart");
-    let product = await productModel.findById();
-    return res.json({ user, userCart: user.cart });
+    const { productId, quantity } = req.body;
+    let user = await userModel.findOne({ email: req.user.email });
+    user.cart.push({ product: productId, quantity: quantity });
+    await user.save();
+    return res.json({ message: "Item Added", cart: user.cart });
   } catch (err) {
+    console.log(err);
     return res.status(500).json(err);
   }
 });
 
+//Show all items to cart Page
+router.get("/api/cart", isLoggedIn, async (req, res) => {
+  try {
+    const user = await userModel
+      .findOne({ email: req.user.email })
+      .populate("cart.product");
+    return res.json({ cart: user.cart });
+  } catch (err) {
+    console.error("Error fetching cart:", err);
+    return res.status(500).json({ error: "Failed to get cart data" });
+  }
+});
 
-//Need to be corect 
+//Delete items from the cart Page
+router.post("/api/cart/delete", isLoggedIn, async (req, res) => {
+  try {
+    const { productId } = req.body;
+
+    const user = await userModel.findOne({ email: req.user.email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Filter out the product from the cart
+    user.cart = user.cart.filter(
+      (item) => item.product.toString() !== productId
+    );
+    await user.save();
+
+    res
+      .status(200)
+      .json({ message: "Item removed from cart", cart: user.cart });
+  } catch (err) {
+    console.error("Error removing cart item:", err);
+    res
+      .status(500)
+      .json({ message: "Something went wrong", error: err.message });
+  }
+});
+
+//Need to be corect
 // //Place Order
 // router.post("/api/order-place", isLoggedIn, async (req, res) => {
 //   try {
@@ -141,6 +160,5 @@ router.get("/api/cart", isLoggedIn, async (req, res) => {
 //     return res.status(500).json({ message: "Internal server error" });
 //   }
 // });
-
 
 module.exports = router;
