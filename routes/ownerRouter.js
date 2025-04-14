@@ -29,19 +29,6 @@ router.post("/admin/logout", isAdminLoggedIn, (req, res) => {
   });
 });
 
-router.get("/admin/login", (req, res) => {
-  try {
-    let error = req.flash("error");
-    const { loggedin = false } = req.session;
-    return res.json({
-      error: error || null,
-      loggedin: loggedin,
-    });
-  } catch (err) {
-    return res.status(500).send("Internal Server Error", err);
-  }
-});
-
 router.get("/admin/panel", isAdminLoggedIn, async (req, res) => {
   try {
     let products = await productModel.find();

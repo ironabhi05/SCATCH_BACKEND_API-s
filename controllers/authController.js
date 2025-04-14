@@ -67,11 +67,11 @@ module.exports.adminLogin = async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: true,
-      sameSite: "None",
-      expires: new Date(0),
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      path: "/",
+      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
     });
-
     return res.status(200).json({
       message: "Admin login successful",
       admin: {
@@ -81,7 +81,7 @@ module.exports.adminLogin = async (req, res) => {
       },
       token,
     });
-  } catch (err) {
+  } catch (error) {
     return res.status(500).json(err);
   }
 };
