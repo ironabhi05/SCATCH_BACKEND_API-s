@@ -1,11 +1,9 @@
 const jwt = require("jsonwebtoken");
-
 const generateAdminToken = (owner) => {
   return jwt.sign(
-    { email: owner.email, id: owner._id, role: "admin" }, // Added role field
+    { adminId: owner._id, email: owner.email, role: "admin" },
     process.env.JWT_ADMIN_KEY,
-    { expiresIn: "2h" } // Token expires in 2 hours
+    { expiresIn: "2h" }
   );
 };
-
 module.exports = { generateAdminToken };

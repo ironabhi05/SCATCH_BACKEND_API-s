@@ -13,20 +13,17 @@ if (process.env.NODE_ENV === "development") {
 router.post("/admin/login", adminLogin);
 
 router.post("/admin/logout", isAdminLoggedIn, (req, res) => {
-  res.clearCookie("token", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "None",
-    path: "/",
-  });
-
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).send("Error clearing session.");
-    }
-
+  try {
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      path: "/",
+    });
     return res.status(200).json({ message: "Logout successful" });
-  });
+  } catch (err) {
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
 });
 
 router.get("/admin/panel", isAdminLoggedIn, async (req, res) => {
@@ -34,15 +31,15 @@ router.get("/admin/panel", isAdminLoggedIn, async (req, res) => {
     let products = await productModel.find();
     let users = await userModel.find();
     let orders = await orderModel.find();
-    const { loggedin = false } = req.session;
     return res.json({
-      loggedin: loggedin,
+      loggedin: true,
+      adminDetails: req.admin,
       products: products,
       users: users,
       orders: orders,
     });
   } catch {
-    return res.status(500).send("Internal Server Error");
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
