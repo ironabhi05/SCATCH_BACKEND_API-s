@@ -12,53 +12,78 @@ cloudinary.config({
 });
 
 // POST route to create a new product
-router.post("/create", upload.single("image"), async (req, res) => {
-  try {
-    let { name, discount, description, size, price, material, image } =
-      req.body;
+router.post(
+  "/create",
+  isAdminLoggedIn,
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      let {
+        name,
+        discount,
+        description,
+        size,
+        price,
+        material,
+        image,
+        height,
+        length,
+        width,
+        category,
+      } = req.body;
 
-    let imageUrl = ""; // Initialize imageUrl
+      let imageUrl = ""; // Initialize imageUrl
 
-    if (req.file) {
-      imageUrl = await new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { resource_type: "auto" },
-          (error, result) => {
-            if (error) {
-              reject(error);
-            } else {
-              resolve(result.secure_url); // This stores the Cloudinary URL
+      if (req.file) {
+        imageUrl = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { resource_type: "auto" },
+            (error, result) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(result.secure_url); // This stores the Cloudinary URL
+              }
             }
-          }
-        );
-        stream.end(req.file.buffer);
+          );
+          stream.end(req.file.buffer);
+        });
+      } else if (req.body.image) {
+        imageUrl = req.body.image;
+      } else {
+        imageUrl = "https://your-default-image-url.com/default-image.png"; // Default image URL
+      }
+      if (size && typeof size === "string") {
+        size = {
+          type: size,
+          height: height,
+          width: width,
+          length: length,
+        };
+      }
+
+      const product = await productModel.create({
+        name,
+        price,
+        discount,
+        description,
+        material,
+        size,
+        length,
+        height,
+        width,
+        category,
+        image: imageUrl,
       });
-    } else if (req.body.image) {
-      // use image url from req.body.image
-      imageUrl = req.body.image;
-    } else {
-      imageUrl = "https://your-default-image-url.com/default-image.png"; // ✅ Use a valid image URL instead of Base64
+
+      return res
+        .status(200)
+        .json({ message: "Product added successfully", product });
+    } catch (err) {
+      return res.status(500).json({ error: "Internal Server Error" });
     }
-
-    // Create product in the database
-    const product = await productModel.create({
-      name,
-      price,
-      discount,
-      description,
-      material,
-      size,
-      image: imageUrl, // Store the Cloudinary URL
-    });
-
-    return res
-      .status(200)
-      .json({ message: "Product added successfully", product });
-  } catch (err) {
-    console.error("Error:", err); // This will log the actual error
-    return res.status(500).json({ error: "Internal Server Error" });
   }
-});
+);
 
 router.get("/create", isAdminLoggedIn, (req, res) => {
   try {
