@@ -43,48 +43,6 @@ router.get("/admin/panel", isAdminLoggedIn, async (req, res) => {
   }
 });
 
-router.get("/admin/users", isAdminLoggedIn, async (req, res) => {
-  try {
-    // Get all users
-    let users = await userModel.find();
-
-    // Get orders for all users
-    let orders = await orderModel
-      .find({ user: { $in: users.map((u) => u._id) } })
-      .populate("items.product");
-
-    // Map orders to each user
-    let userOrders = users.map((user) => {
-      // Get orders for each user
-      let userOrdersList = orders.filter(
-        (order) => order.user.toString() === user._id.toString()
-      );
-
-      // For each order, add item length to the order
-      userOrdersList = userOrdersList.map((order) => {
-        return {
-          ...order.toObject(),
-          itemCount: order.items.length, // Add item count to the order
-        };
-      });
-
-      return {
-        user,
-        orders: userOrdersList, // Return the user with their orders and item counts
-      };
-    });
-
-    const { loggedin = false } = req.session;
-    return res.json({
-      loggedin: loggedin,
-      userOrders: userOrders,
-      users: users,
-    });
-  } catch (error) {
-    return res.status(500).json({ message: "Internal Server Error" });
-  }
-});
-
 router.delete(
   "/delete-product/:productid",
   isAdminLoggedIn,

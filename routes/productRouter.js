@@ -14,8 +14,7 @@ cloudinary.config({
 // POST route to create a new product
 router.post(
   "/create",
-  isAdminLoggedIn,
-  upload.single("image"),
+  upload.array("images", 4), // handle uploaded files (if any)
   async (req, res) => {
     try {
       let {
@@ -25,42 +24,66 @@ router.post(
         size,
         price,
         material,
-        image,
         height,
         length,
         width,
         category,
       } = req.body;
 
-      let imageUrl = ""; // Initialize imageUrl
+      let imageUrls = [];
 
-      if (req.file) {
-        imageUrl = await new Promise((resolve, reject) => {
-          const stream = cloudinary.uploader.upload_stream(
-            { resource_type: "auto" },
-            (error, result) => {
-              if (error) {
-                reject(error);
-              } else {
-                resolve(result.secure_url); // This stores the Cloudinary URL
+      // If images are uploaded via files
+      if (req.files && req.files.length > 0) {
+        const uploadPromises = req.files.map((file) => {
+          return new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              { resource_type: "auto" },
+              (error, result) => {
+                if (error) reject(error);
+                else resolve(result.secure_url);
               }
-            }
-          );
-          stream.end(req.file.buffer);
+            );
+            stream.end(file.buffer);
+          });
         });
-      } else if (req.body.image) {
-        imageUrl = req.body.image;
-      } else {
-        imageUrl = "https://your-default-image-url.com/default-image.png"; // Default image URL
+
+        imageUrls = await Promise.all(uploadPromises);
       }
+
+      // If image URLs are passed directly in the body
+      else if (req.body.image) {
+        if (Array.isArray(req.body.image)) {
+          imageUrls = req.body.image;
+        } else {
+          try {
+            const urls = JSON.parse(req.body.image);
+            if (Array.isArray(urls)) {
+              imageUrls = urls;
+            } else {
+              return res
+                .status(400)
+                .json({ error: "Image must be an array of URLs" });
+            }
+          } catch (err) {
+            return res.status(400).json({ error: "Invalid image URL format" });
+          }
+        }
+      }
+
+      // Default image if no images passed
+      if (imageUrls.length === 0) {
+        imageUrls.push("https://your-default-image-url.com/default-image.png");
+      }
+
       if (size && typeof size === "string") {
         size = {
           type: size,
-          height: height,
-          width: width,
-          length: length,
+          height: Number(height),
+          width: Number(width),
+          length: Number(length),
         };
       }
+
 
       const product = await productModel.create({
         name,
@@ -69,11 +92,8 @@ router.post(
         description,
         material,
         size,
-        length,
-        height,
-        width,
         category,
-        image: imageUrl,
+        image: imageUrls,
       });
 
       return res
@@ -84,6 +104,7 @@ router.post(
     }
   }
 );
+
 
 router.get("/create", isAdminLoggedIn, (req, res) => {
   try {

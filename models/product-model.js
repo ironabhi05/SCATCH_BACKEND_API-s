@@ -21,9 +21,11 @@ const sizeSchema = new mongoose.Schema({
 });
 
 const productSchema = new mongoose.Schema({
-  image: {
-    type: String,
-  },
+  image: [
+    {
+      type: String, 
+    },
+  ],
   name: {
     type: String,
     required: true,
