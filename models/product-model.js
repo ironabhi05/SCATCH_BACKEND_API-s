@@ -23,7 +23,8 @@ const sizeSchema = new mongoose.Schema({
 const productSchema = new mongoose.Schema({
   image: [
     {
-      type: String, 
+      type: String,
+      required: true,
     },
   ],
   name: {
@@ -32,13 +33,14 @@ const productSchema = new mongoose.Schema({
   },
   discount: {
     type: Number,
-    default: 0,
+    default: 10,
   },
   description: {
     type: String,
+    required: true,
   },
   size: {
-    type: sizeSchema, // Using the nested schema
+    type: sizeSchema,
     required: true,
   },
   price: {
@@ -47,12 +49,19 @@ const productSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ["Travel", "Backpacks", "School Bags", "Handbags", "Laptop Bags"],
+    enum: [
+      "Suitcases & Trolley Bags",
+      "Duffle Bags",
+      "Backpacks",
+      "School Bags",
+      "Handbags",
+      "Laptop Bags",
+    ],
     default: "Backpacks",
-    required: true,
   },
   material: {
     type: String,
+    required: true,
   },
 });
 

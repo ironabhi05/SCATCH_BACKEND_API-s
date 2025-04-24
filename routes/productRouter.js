@@ -14,6 +14,7 @@ cloudinary.config({
 // POST route to create a new product
 router.post(
   "/create",
+  isAdminLoggedIn,  
   upload.array("images", 4), // handle uploaded files (if any)
   async (req, res) => {
     try {
@@ -84,7 +85,6 @@ router.post(
         };
       }
 
-
       const product = await productModel.create({
         name,
         price,
@@ -104,21 +104,5 @@ router.post(
     }
   }
 );
-
-
-router.get("/create", isAdminLoggedIn, (req, res) => {
-  try {
-    let success = req.flash("success");
-    const loggedin = req.session.loggedin || false;
-
-    // Return the data as a JSON response
-    return res.json({
-      success: success,
-      loggedin: loggedin,
-    });
-  } catch (error) {
-    return res.status(500).json({ message: "Internal Server Error" });
-  }
-});
 
 module.exports = router;
