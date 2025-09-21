@@ -1,17 +1,21 @@
 const ownerModel = require("../models/owner-model");
 const bcrypt = require("bcrypt");
 const { generateAdminToken } = require("../utils/generateAdminToken");
+const logger = require("../utils/logger"); 
 
 module.exports.createOwner = async (req, res) => {
   try {
+    logger.info(`CreateOwner API hit with email: ${req.body.email}`);
+
     const existingOwner = await ownerModel.findOne({ email: req.body.email });
     if (existingOwner) {
+      logger.warn(`Owner creation failed, email already taken: ${req.body.email}`);
       return res.status(400).json({ message: "Email is already taken." });
     }
 
     let { fullname, password, email } = req.body;
 
-    // Hash the password using bcrypt with async/await
+    // Hash the password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -22,6 +26,8 @@ module.exports.createOwner = async (req, res) => {
       email,
     });
 
+    logger.info(`Owner created successfully: ${email} - ID: ${newOwner._id}`);
+
     // Generate the admin token
     let token = generateAdminToken(newOwner);
 
@@ -29,12 +35,11 @@ module.exports.createOwner = async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: true,
-      sameSite: "None", // Allow sending cookies across domains
-      maxAge: 1000 * 60 * 60 * 24, // 1 day
-      path: "/", // Ensures it's available across all routes
+      sameSite: "None",
+      maxAge: 1000 * 60 * 60 * 24,
+      path: "/",
     });
 
-    // Return the new owner object (you can omit the password)
     newOwner.password = undefined;
 
     return res.status(200).json({
@@ -42,23 +47,27 @@ module.exports.createOwner = async (req, res) => {
       owner: newOwner,
     });
   } catch (err) {
+    logger.error("Error creating owner", { error: err });
     return res.status(500).json(err);
   }
 };
 
 module.exports.adminLogin = async (req, res) => {
   try {
-    let { email, password } = req.body;
+    const { email, password } = req.body;
+    logger.info(`Admin login attempt: ${email}`);
 
     // Check if admin exists
     let isAdmin = await ownerModel.findOne({ email });
     if (!isAdmin) {
+      logger.warn(`Admin login failed - email not found: ${email}`);
       return res.status(400).json({ message: "Email or Password Incorrect" });
     }
 
-    // Compare passwords using async/await
+    // Compare passwords
     const passwordMatch = await bcrypt.compare(password, isAdmin.password);
     if (!passwordMatch) {
+      logger.warn(`Admin login failed - incorrect password: ${email}`);
       return res.status(400).json({ message: "Email or Password Incorrect" });
     }
 
@@ -72,6 +81,9 @@ module.exports.adminLogin = async (req, res) => {
       path: "/",
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
     });
+
+    logger.info(`Admin logged in successfully: ${email}`);
+
     return res.status(200).json({
       message: "Admin login successful",
       admin: {
@@ -82,6 +94,7 @@ module.exports.adminLogin = async (req, res) => {
       token,
     });
   } catch (error) {
+    logger.error("Error during admin login", { error });
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
