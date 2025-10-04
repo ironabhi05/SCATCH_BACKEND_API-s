@@ -41,37 +41,9 @@ module.exports.createUser = async (req, res) => {
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
     });
 
-    //Send email to user
-    await sendMail({
-      to: email,
-      subject: "?? Welcome to SCATCH MART!",
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9;">
-          <h2 style="color: #2c7be5;">😊Welcome to SCATCH MART!</h2>
-          <p>Hello <b>${fullname}</b>,</p>
-          <p>We're excited to have you join <b>SCATCH MART</b> � your one-stop destination for shopping.</p>
-          
-          <p>With your new account, you can:</p>
-          <ul>
-            <li>?? Browse and shop the latest products</li>
-            <li>?? Securely manage your orders & account</li>
-            <li>? Get access to exclusive deals & offers</li>
-          </ul>
-    
-          <p style="margin: 20px 0;">
-            <a href="https://scatchmart.com/login" 
-               style="background: #2c7be5; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: bold;">
-              Start Shopping
-            </a>
-          </p>
-    
-          <p>If you didn't create this account, please ignore this email.</p>
-          <hr/>
-          <p style="font-size: 12px; color: #888;">© 2025 SCATCH MART. All rights reserved.</p>
-        </div>
-      `,
-    });
+    await sendMail("welcome", email);
 
+    logger.info(`User created successfully: ${newUser.email}`);
     return res
       .status(201)
       .json({ message: "User created successfully!", user: newUser, token });
@@ -109,7 +81,7 @@ module.exports.userLogin = async (req, res) => {
       path: "/",
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
     });
-
+    logger.info(`User logged in successfully: ${isUser.email}`);
     return res.status(200).json({
       message: "Login successful!",
       user: {
@@ -122,6 +94,7 @@ module.exports.userLogin = async (req, res) => {
       token,
     });
   } catch (err) {
+    logger.error(`userLogin failed: ${err.stack || err.message}`);
     return res.status(500).json(err);
   }
 };
@@ -166,6 +139,7 @@ module.exports.userLogout = (req, res) => {
       path: "/",
     });
 
+    logger.info(`User logged out successfully: ${req.user.email}`);
     return res.status(200).json({
       message: "You have been logged out successfully.",
     });
@@ -188,9 +162,11 @@ module.exports.deleteUserSelf = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-
+    
+    logger.info(`User deleted successfully: ${user.email}`);
     return res.status(200).json({ message: "User Deleted" });
   } catch (err) {
+    logger.error(`deleteUserSelf failed: ${err.stack || err.message}`);
     return res
       .status(500)
       .json({ message: "Internal server error", error: err });
@@ -230,28 +206,10 @@ module.exports.userSendOtp = async (req, res) => {
     await user.save();
 
     // Send OTP to user's email
-    await sendMail({
-      to: email,
-      subject: "SCATCH MART - OTP for Password Reset",
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9;">
-          <h2 style="color: #333;">🔑 Password Reset Request</h2>
-          <p>Hello,</p>
-          <p>We received a request to reset your <b>SCATCH MART</b> account password.</p>
-          <p style="font-size: 16px; margin: 20px 0;">
-            Your One-Time Password (OTP) is:
-            <br/>
-            <span style="font-size: 18px; text-align: center; font-weight: bold; color: #2c7be5;">${otp}</span>
-          </p>
-          <p>This OTP is valid for <b>2 minutes</b>. Please do not share it with anyone.</p>
-          <p>If you didn't request this, you can safely ignore this email.</p>
-          <hr/>
-          <p style="font-size: 12px; color: #888;">© 2025 SCATCH MART. All rights reserved.</p>
-        </div>
-      `,
-    });
+    await sendMail("otp_reset", email, otp);
 
     // Return token for OTP verification along with confirmation
+    logger.info(`OTP sent successfully: ${email}`);
     return res.json({ message: "OTP sent successfully", otp, token });
   } catch (error) {
     logger.error(`userSendOtp failed: ${error.stack || error.message}`);
@@ -291,8 +249,10 @@ module.exports.userVerifyOtp = async (req, res) => {
       return res.status(400).json({ message: "Please enter a valid OTP" });
     }
 
+    logger.info(`OTP verified successfully: ${user.email}`);
     return res.json({ message: "OTP verified successfully" });
   } catch (error) {
+    logger.error(`userVerifyOtp failed: ${error.stack || error.message}`);
     return res.status(500).json({ error: error.message });
   }
 };
@@ -332,25 +292,12 @@ module.exports.userResetPassword = async (req, res) => {
     await user.save();
 
     // Send OTP to user's email
-    await sendMail({
-      to: user.email,
-      subject: "SCATCH MART - Password Changed Successfully",
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9;">
-          <h2 style="color: #333;">Password Changed</h2>
-          <p>Dear ${user.fullname},</p>
-          <p>Your <b>SCATCH MART</b> account password has been changed successfully.</p>
-          <p>Happy Shopping!??</p>
-          <p>If this was you, no further action is required.</p>
-          <p style="color: #e63946;"><b>If you did not make this change, please reset your password immediately or contact our support team.</b></p>
-          <hr/>
-          <p style="font-size: 12px; color: #888;">� 2025 SCATCH MART. Security is our priority.</p>
-        </div>
-      `,
-    });
-
+    await sendMail("password_changed", user.email);
+    
+    logger.info(`Password reset successfully: ${user.email}`);
     return res.json({ message: "Password reset successfully" });
   } catch (error) {
+    logger.error(`userResetPassword failed: ${error.stack || error.message}`);
     return res.status(500).json({ error: error.message });
   }
 };
