@@ -1,14 +1,21 @@
 //Importing modules or libraries
 
+const path = require("path");
+const nodeEnv = process.env.NODE_ENV || "development";
+require("dotenv").config({
+  path: path.resolve(process.cwd(), `.env.${nodeEnv}`),
+});
+
 const express = require("express");
 const cookieParser = require("cookie-parser");
-const path = require("path");
 const app = express();
 const connectDB = require("./utils/mongoose-connection");
 const ownerRouter = require("./routes/ownerRouter");
 const productRouter = require("./routes/productRouter");
 const userRouter = require("./routes/userRouter");
+const orderRouter = require("./routes/orderRouter");
 const indexRouter = require("./routes/index");
+const chatRoute = require("./routes/chatBot.js");
 const session = require("express-session");
 const methodOverride = require("method-override");
 const MongoStore = require("connect-mongo");
@@ -17,10 +24,6 @@ const logger = require("./utils/logger.js");
 const cors = require("cors");
 
 const PORT = process.env.PORT || 5000;
-
-require("dotenv").config({
-  path: `.env.${process.env.NODE_ENV || "development"}`,
-});
 
 // ---------------- DATABASE CONNECTION ----------------
 connectDB();
@@ -52,10 +55,12 @@ app.use(cookieParser());
 app.use(methodOverride("_method"));
 logger.info("Express middlewares applied");
 
+
 // ---------------- CORS SETUP ----------------
 const allowedOrigins = [
   "http://localhost:5173",
   "https://scatch-mart.netlify.app",
+  "https://hoppscotch.io",
   process.env.CLIENT_URL,
 ];
 
@@ -79,7 +84,9 @@ logger.info("CORS configured");
 app.use("/api/owners", ownerRouter);
 app.use("/api/users", userRouter);
 app.use("/api/products", productRouter);
+app.use("/api/orders", orderRouter);
 app.use("/", indexRouter);
+app.use("/api", chatRoute);
 logger.info("API routes configured");
 
 // ---------------- BASE ROUTE ----------------

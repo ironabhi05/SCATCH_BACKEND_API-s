@@ -5,7 +5,11 @@ const userModel = require("../models/user-model");
 const {
   createUser,
   userLogin,
+  userSendOtp,
+  userVerifyOtp,
   userLogout,
+  userResetPassword,
+  deleteUserSelf,
   getUser,
 } = require("../controllers/userAuthController");
 
@@ -17,22 +21,12 @@ router.post("/logout", userLogout);
 
 router.get("/profile", isLoggedIn, getUser);
 
-router.delete("/delete-user/:userid", isLoggedIn, async (req, res) => {
-  const { userid } = req.params;
+router.post("/send-otp", userSendOtp);
 
-  try {
-    const user = await userModel.findByIdAndDelete(userid);
+router.post("/verify-otp", userVerifyOtp);
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+router.post("/reset-password", userResetPassword);
 
-    return res.status(200).json({ message: "User Deleted" });
-  } catch (err) {
-    return res
-      .status(500)
-      .json({ message: "Internal server error", error: err });
-  }
-});
+router.delete("/delete-user/:userid", isLoggedIn, deleteUserSelf);
 
 module.exports = router;
