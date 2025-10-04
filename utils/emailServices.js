@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const logger = require("./logger");
 
 const transporter = nodemailer.createTransport({
   host: "smtp-relay.brevo.com",
@@ -250,6 +251,7 @@ const sendMail = async (type, to, otp = null) => {
       break;
 
     default:
+      logger.error(`Unknown email type: ${type}`);
       throw new Error(`Unknown email type: ${type}`);
   }
 
