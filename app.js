@@ -20,6 +20,7 @@ const session = require("express-session");
 const methodOverride = require("method-override");
 const MongoStore = require("connect-mongo");
 const logger = require("./utils/logger.js");
+const startSelfPing = require("./utils/selfPing.js");
 
 const cors = require("cors");
 
@@ -54,7 +55,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(methodOverride("_method"));
 logger.info("Express middlewares applied");
-
 
 // ---------------- CORS SETUP ----------------
 const allowedOrigins = [
@@ -104,4 +104,5 @@ app.get("/", (req, res) => {
 // ---------------- SERVER START ----------------
 app.listen(PORT, () => {
   logger.info(`Server started on port ${PORT} 📡🚀🚀🚀`);
+  startSelfPing();
 });
