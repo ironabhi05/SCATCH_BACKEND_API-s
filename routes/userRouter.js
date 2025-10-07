@@ -23,9 +23,9 @@ router.get("/profile", isLoggedIn, getUser);
 
 router.post("/send-otp", userSendOtp);
 
-router.post("/verify-otp", userVerifyOtp);
+router.post("/verify-otp", isLoggedIn, userVerifyOtp);
 
-router.post("/reset-password", userResetPassword);
+router.post("/reset-password", isLoggedIn, userResetPassword);
 
 router.delete("/delete-user/:userid", isLoggedIn, deleteUserSelf);
 

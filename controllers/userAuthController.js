@@ -1,11 +1,12 @@
+const emailService = require("../utils/emailServices");
 const userModel = require("../models/user-model");
 const bcrypt = require("bcrypt");
 const { generateToken } = require("../utils/generateToken");
 const logger = require("../utils/logger");
 const jwt = require("jsonwebtoken");
-const { sendMail } = require("../utils/emailServices");
+const otpGenerator = require("../utils/otpGenerator");
 
-// CreateUser: Create a new user with the provided information
+//CreateUser: Create a new user with the provided information
 module.exports.createUser = async (req, res) => {
   try {
     let { fullname, email, password, cart, contact, picture } = req.body;
@@ -40,9 +41,9 @@ module.exports.createUser = async (req, res) => {
       path: "/",
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
     });
-
-    await sendMail("welcome", email);
-
+    // Send a welcome email to the user
+    await emailService.sendWelcomeEmail(newUser.email); 
+    // Log the user creation
     logger.info(`User created successfully: ${newUser.email}`);
     return res
       .status(201)
@@ -162,7 +163,7 @@ module.exports.deleteUserSelf = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    
+
     logger.info(`User deleted successfully: ${user.email}`);
     return res.status(200).json({ message: "User Deleted" });
   } catch (err) {
@@ -197,18 +198,15 @@ module.exports.userSendOtp = async (req, res) => {
     });
 
     // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = await otpGenerator.generateOTP(user);
 
-    // Store OTP and expiry in user document
-    const expiry = Date.now() + 2 * 60 * 1000; // 2 minutes
-    user.resetOtp = otp;
-    user.resetOtpExpiry = expiry;
+    // Set OTP and expiry time in user model
+    user.resetOtp = await bcrypt.hash(otp, 10);
+    user.resetOtpExpiry = Date.now() + 1000 * 60 * 20; // 20 minutes
     await user.save();
 
     // Send OTP to user's email
-    await sendMail("otp_reset", email, otp);
-
-    // Return token for OTP verification along with confirmation
+    await emailService.sendOtpResetEmail(user.email, otp);
     logger.info(`OTP sent successfully: ${email}`);
     return res.json({ message: "OTP sent successfully", otp, token });
   } catch (error) {
@@ -217,85 +215,71 @@ module.exports.userSendOtp = async (req, res) => {
   }
 };
 
-//UserVerifyOtp: Verify OTP for the user
+//UserVerifyOtp: Verify the OTP for password reset
 module.exports.userVerifyOtp = async (req, res) => {
   const { otp } = req.body;
   try {
-    // Check if token exists in cookies
-    const token = req.cookies.token;
-    if (!token) {
-      return res.status(401).json({ message: "Please enter a valid OTP" });
+    if (!req.user) {
+      return res.status(401).json({
+        message: "Unauthorized access.",
+      });
     }
 
-    // Verify token and extract user info
-    const decoded = jwt.verify(token, process.env.JWT_KEY);
-
-    // Find user by decoded email or id
-    const user = await userModel.findOne({
-      $or: [{ email: decoded.email }, { _id: decoded.id }],
-    });
-
+    const user = await userModel.findById(req.user._id).select("resetOtp resetOtpExpiry");
     if (!user) {
-      return res.status(400).json({ message: "User not found!" });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    // Check if OTP is expired
-    if (!user.resetOtpExpiry || user.resetOtpExpiry < Date.now()) {
-      return res.status(400).json({ message: "OTP expired!" });
+    if (!user.resetOtp || !user.resetOtpExpiry) {
+      return res.status(400).json({ message: "OTP not found or expired" });
     }
 
-    // Check if OTP is correct
-    if (!user.resetOtp || user.resetOtp !== otp) {
-      return res.status(400).json({ message: "Please enter a valid OTP" });
+    if (Date.now() > user.resetOtpExpiry) {
+      await user.updateOne({ resetOtp: undefined, resetOtpExpiry: undefined });
+      return res.status(400).json({ message: "OTP expired" });
     }
 
-    logger.info(`OTP verified successfully: ${user.email}`);
-    return res.json({ message: "OTP verified successfully" });
+    const isMatch = await bcrypt.compare(otp, user.resetOtp);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    // OTP verified, clear it and allow reset
+    await user.updateOne({ resetOtp: undefined, resetOtpExpiry: undefined });
+
+    logger.info(`OTP verified for user: ${user.email}`);
+    return res.status(200).json({ message: "OTP verified successfully" });
   } catch (error) {
     logger.error(`userVerifyOtp failed: ${error.stack || error.message}`);
     return res.status(500).json({ error: error.message });
   }
 };
 
-//UserResetPassword: Reset the user's password after verifying OTP
+//UserResetPassword: Reset the password after OTP verification
 module.exports.userResetPassword = async (req, res) => {
   const { newPassword } = req.body;
   try {
-    // Check if token exists in cookies
-    const token = req.cookies.token;
-    if (!token) {
-      return res
-        .status(401)
-        .json({ message: "Unauthorized. Please verify OTP first." });
+    if (!req.user) {
+      return res.status(401).json({
+        message: "Unauthorized access. Please log in.",
+      });
     }
 
-    // Verify token and extract user info
-    const decoded = jwt.verify(token, process.env.JWT_KEY);
-
-    // Find user by decoded email or id
-    const user = await userModel.findOne({
-      $or: [{ email: decoded.email }, { _id: decoded.id }],
-    });
-
+    const user = await userModel.findById(req.user._id);
     if (!user) {
-      return res.status(400).json({ message: "User not found!" });
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-
-    // Update password and clear OTP fields
     user.password = hashedPassword;
-    user.resetOtp = undefined;
-    user.resetOtpExpiry = undefined;
     await user.save();
 
-    // Send OTP to user's email
-    await sendMail("password_changed", user.email);
-    
-    logger.info(`Password reset successfully: ${user.email}`);
-    return res.json({ message: "Password reset successfully" });
+    // Send password changed email
+    await emailService.sendPasswordChangedEmail(user.email);
+
+    logger.info(`Password reset successfully for user: ${user.email}`);
+    return res.status(200).json({ message: "Password reset successfully" });
   } catch (error) {
     logger.error(`userResetPassword failed: ${error.stack || error.message}`);
     return res.status(500).json({ error: error.message });
