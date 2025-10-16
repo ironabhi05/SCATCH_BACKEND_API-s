@@ -2,9 +2,10 @@ const emailService = require("../utils/emailServices");
 const userModel = require("../models/user-model");
 const bcrypt = require("bcrypt");
 const { generateToken } = require("../utils/generateToken");
+const { generateResetToken } = require("../utils/generateResetToken");
 const logger = require("../utils/logger");
 const jwt = require("jsonwebtoken");
-const otpGenerator = require("../utils/otpGenerator");
+const { generateOTP } = require("../utils/otpGenerator");
 
 //CreateUser: Create a new user with the provided information
 module.exports.createUser = async (req, res) => {
@@ -42,7 +43,7 @@ module.exports.createUser = async (req, res) => {
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
     });
     // Send a welcome email to the user
-    await emailService.sendWelcomeEmail(newUser.email); 
+    await emailService.sendWelcomeEmail(newUser.email);
     // Log the user creation
     logger.info(`User created successfully: ${newUser.email}`);
     return res
@@ -174,114 +175,178 @@ module.exports.deleteUserSelf = async (req, res) => {
   }
 };
 
-//UserSendOtp: Send OTP to user's email for password reset
+// UserSendOtp: Send OTP to user's email for password reset
 module.exports.userSendOtp = async (req, res) => {
   const { email } = req.body;
   try {
-    // Check if user exists by email
-    const user = await userModel.findOne({ email });
-
-    if (!user) {
-      return res.status(400).json({ message: "User not found!" });
+    // Input validation
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
     }
 
-    // Generate JWT token for the user
-    const token = generateToken(user);
-
-    // Set token as cookie
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-      path: "/",
-      expires: new Date(Date.now() + 1000 * 60 * 20), // 20 minutes
-    });
+    // Check if user exists by email
+    const user = await userModel.findOne({ email });
+    if (!user) {
+      logger.warn(`Password reset attempt for non-existent email: ${email}`);
+      return res.status(404).json({ message: "User not found" });
+    }
 
     // Generate 6-digit OTP
-    const otp = await otpGenerator.generateOTP(user);
+    const otp = await generateOTP(user);
 
     // Set OTP and expiry time in user model
     user.resetOtp = await bcrypt.hash(otp, 10);
-    user.resetOtpExpiry = Date.now() + 1000 * 60 * 20; // 20 minutes
+    user.resetOtpExpiry = Date.now() + 1000 * 60 * 10; // 10 minutes
     await user.save();
 
     // Send OTP to user's email
-    await emailService.sendOtpResetEmail(user.email, otp);
-    logger.info(`OTP sent successfully: ${email}`);
-    return res.json({ message: "OTP sent successfully", otp, token });
+    try {
+      await emailService.sendOtpResetEmail(user.email, otp);
+      logger.info(`OTP sent successfully to: ${email}`);
+    } catch (emailError) {
+      logger.error(`Failed to send OTP email: ${emailError.message}`);
+      return res.status(500).json({ message: "Failed to send OTP. Please try again." });
+    }
+
+    // Generate and set reset token
+    const resetToken = generateResetToken(user);
+    res.cookie("resetToken", resetToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      maxAge: 1000 * 60 * 10, // 10 minutes
+    });
+
+    return res.status(200).json({
+      message: "OTP sent successfully",
+      // Don't send OTP in response in production
+      ...(process.env.NODE_ENV !== 'production' && { otp, resetToken })
+    });
+
   } catch (error) {
     logger.error(`userSendOtp failed: ${error.stack || error.message}`);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ message: "An error occurred while processing your request" });
   }
 };
 
-//UserVerifyOtp: Verify the OTP for password reset
+// UserVerifyOtp: Verify the OTP for password reset
 module.exports.userVerifyOtp = async (req, res) => {
   const { otp } = req.body;
+
+  if (!otp) {
+    return res.status(400).json({ message: "OTP is required" });
+  }
+
   try {
-    if (!req.user) {
-      return res.status(401).json({
-        message: "Unauthorized access.",
-      });
+    const token = req.cookies.resetToken;
+    if (!token) {
+      return res.status(400).json({ message: "Invalid or expired reset session" });
     }
 
-    const user = await userModel.findById(req.user._id).select("resetOtp resetOtpExpiry");
+    const decoded = jwt.verify(token, process.env.JWT_KEY);
+    const user = await userModel.findById(decoded.id).select("+resetOtp +resetOtpExpiry");
+
+    if (decoded.purpose !== "reset_password") {
+      return res.status(403).json({ message: "Invalid token type" });
+    }
+
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Check OTP existence and expiry
     if (!user.resetOtp || !user.resetOtpExpiry) {
       return res.status(400).json({ message: "OTP not found or expired" });
     }
 
     if (Date.now() > user.resetOtpExpiry) {
-      await user.updateOne({ resetOtp: undefined, resetOtpExpiry: undefined });
-      return res.status(400).json({ message: "OTP expired" });
+      await user.updateOne({
+        $unset: { resetOtp: 1, resetOtpExpiry: 1 }
+      });
+      return res.status(400).json({ message: "OTP has expired" });
     }
 
+    // Verify OTP
     const isMatch = await bcrypt.compare(otp, user.resetOtp);
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
-    // OTP verified, clear it and allow reset
-    await user.updateOne({ resetOtp: undefined, resetOtpExpiry: undefined });
+    // Clear OTP after successful verification
+    await user.updateOne({
+      $unset: { resetOtp: 1, resetOtpExpiry: 1 }
+    });
 
     logger.info(`OTP verified for user: ${user.email}`);
-    return res.status(200).json({ message: "OTP verified successfully" });
+    return res.status(200).json({
+      message: "OTP verified successfully"
+    });
+
   } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: "Invalid or expired session" });
+    }
     logger.error(`userVerifyOtp failed: ${error.stack || error.message}`);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ message: "An error occurred while verifying OTP" });
   }
 };
 
-//UserResetPassword: Reset the password after OTP verification
+// UserResetPassword: Reset the password after OTP verification
 module.exports.userResetPassword = async (req, res) => {
   const { newPassword } = req.body;
+
   try {
-    if (!req.user) {
-      return res.status(401).json({
-        message: "Unauthorized access. Please log in.",
-      });
+    const token = req.cookies.resetToken;
+    if (!token) {
+      return res.status(400).json({ message: "Invalid or expired reset session" });
     }
 
-    const user = await userModel.findById(req.user._id);
+    const decoded = jwt.verify(token, process.env.JWT_KEY);
+    if (decoded.purpose !== "reset_password") {
+      return res.status(403).json({ message: "Invalid token type" });
+    }
+
+    const user = await userModel.findById(decoded.id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Hash the new password
+    // Check if the new password is different from the current one (if needed)
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword) {
+      return res.status(400).json({ message: "New password must be different from the current password" });
+    }
+
+    // Hash the new password (now safe with validation)
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
     await user.save();
 
-    // Send password changed email
-    await emailService.sendPasswordChangedEmail(user.email);
+    // Clear the reset token cookie
+    res.clearCookie("resetToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      path: "/"
+    });
+
+    // Send password changed notification
+    try {
+      await emailService.sendPasswordChangedEmail(user.email);
+    } catch (emailError) {
+      logger.error(`Failed to send password change email: ${emailError.message}`);
+      // Don't fail the request if email fails
+    }
 
     logger.info(`Password reset successfully for user: ${user.email}`);
-    return res.status(200).json({ message: "Password reset successfully" });
+    return res.status(200).json({ message: "Password has been reset successfully" });
+
   } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: "Invalid or expired session" });
+    }
     logger.error(`userResetPassword failed: ${error.stack || error.message}`);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ message: "An error occurred while resetting password" });
   }
 };
