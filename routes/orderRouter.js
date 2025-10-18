@@ -12,7 +12,7 @@ const {
 } = require("../controllers/orderController");
 
 // User routes - require authentication
-router.post("/place", isLoggedIn, placeOrder);
+router.post("/place-order", isLoggedIn, placeOrder);
 router.get("/my-orders", isLoggedIn, getUserOrders);
 router.get("/:orderId", isLoggedIn, getOrderById);
 router.post("/:orderId/cancel", isLoggedIn, cancelOrder);

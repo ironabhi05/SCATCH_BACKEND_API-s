@@ -19,32 +19,32 @@ module.exports.placeOrder = async (req, res) => {
       return res.status(400).json({ message: "Cart is empty" });
     }
 
+    const shippingCharge = 10;
+
     // Validate and calculate total
-    let totalAmount = 0;
-    const orderItems = [];
+    const totalAmount = user.cart.reduce(
+      (acc, item) =>
+        acc + item.product.price * item.quantity + shippingCharge - item.product.price * item.quantity * (item.product.discount / 100),
+      0
+    );
+    const totalQuantity = user.cart.reduce(
+      (acc, item) => acc + item.quantity,
+      0
+    );
 
-    for (const item of user.cart) {
-      if (!item.product) {
-        logger.warn(`Product not found in cart for user: ${req.user.email}`);
-        return res.status(404).json({ message: "Product not found in cart" });
-      }
-
-      const itemPrice = item.product.price * item.quantity;
-      totalAmount += itemPrice;
-
-      orderItems.push({
-        product: item.product._id,
-        quantity: item.quantity,
-        price: item.product.price,
-        status: "pending",
-      });
-    }
+    const orderItems = user.cart.map((item) => ({
+      product: item.product._id,
+      quantity: item.quantity,
+      price: item.product.price,
+      status: "pending",
+    }));
 
     // Create order
     const newOrder = await orderModel.create({
       user: userId,
       items: orderItems,
       totalAmount,
+      totalQuantity,
       shippingAddress,
       paymentMethod: paymentMethod || "COD",
     });
@@ -189,8 +189,7 @@ module.exports.getAllOrders = async (req, res) => {
       .sort({ createdAt: -1 });
 
     logger.info(
-      `Admin fetched all orders: Total=${orders.length}, Admin=${
-        req.admin?.email || "Unknown"
+      `Admin fetched all orders: Total=${orders.length}, Admin=${req.admin?.email || "Unknown"
       }`
     );
 
@@ -255,8 +254,7 @@ module.exports.updateOrderStatus = async (req, res) => {
 
     if (!orderItem) {
       logger.warn(
-        `Order item not found for status update: OrderID=${orderId}, ItemProductId=${
-          itemProductId || "N/A"
+        `Order item not found for status update: OrderID=${orderId}, ItemProductId=${itemProductId || "N/A"
         }, ItemId=${itemId || "N/A"}`
       );
       return res.status(404).json({ message: "Order item not found" });
@@ -266,8 +264,7 @@ module.exports.updateOrderStatus = async (req, res) => {
     await order.save();
 
     logger.info(
-      `Order item status updated: OrderID=${orderId}, NewStatus=${status}, Admin=${
-        req.admin?.email || "Unknown"
+      `Order item status updated: OrderID=${orderId}, NewStatus=${status}, Admin=${req.admin?.email || "Unknown"
       }`
     );
 

@@ -37,13 +37,18 @@ const orderSchema = new mongoose.Schema({
     phone: String,
     addressLine: String,
     city: String,
+    state: String,
     postalCode: String,
     country: String,
   },
-  paymentMethod: { 
-    type: String, 
-    enum: ["COD", "Online"], 
-    default: "COD" 
+  totalQuantity: {
+    type: Number,
+    required: true,
+  },
+  paymentMethod: {
+    type: String,
+    enum: ["COD", "Card", "UPI"],
+    default: "COD",
   },
   createdAt: {
     type: Date,
