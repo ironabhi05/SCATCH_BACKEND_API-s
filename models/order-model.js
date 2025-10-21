@@ -33,13 +33,16 @@ const orderSchema = new mongoose.Schema({
     required: true,
   },
   shippingAddress: {
-    fullName: String,
-    phone: String,
-    addressLine: String,
-    city: String,
-    state: String,
-    postalCode: String,
-    country: String,
+    type: {
+      fullName: String,
+      phone: String,
+      addressLine: String,
+      city: String,
+      state: String,
+      postalCode: String,
+      country: String,
+    },
+    required: true,
   },
   totalQuantity: {
     type: Number,

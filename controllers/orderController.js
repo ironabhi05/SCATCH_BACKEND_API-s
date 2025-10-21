@@ -35,7 +35,7 @@ module.exports.placeOrder = async (req, res) => {
     const orderItems = user.cart.map((item) => ({
       product: item.product._id,
       quantity: item.quantity,
-      price: item.product.price,
+      price: item.product.price - (item.product.price * item.product.discount / 100),
       status: "pending",
     }));
 
@@ -79,14 +79,15 @@ module.exports.getUserOrders = async (req, res) => {
       .sort({ createdAt: -1 });
 
     logger.info(`Fetched ${orders.length} orders for user: ${req.user.email}`);
-    orders.forEach((order) => {
-      const orderId = order._id;
-      const userId = order.user;
-      order.items.forEach((item) => {
-        const productId = item.product._id;
-        const status = item.status;
-      });
+
+    // Debug: Log shipping address data for each order
+    orders.forEach((order, index) => {
+      logger.info(`Order ${index + 1} - Shipping Address:`, order.shippingAddress);
+      if (!order.shippingAddress || Object.keys(order.shippingAddress).length === 0) {
+        logger.warn(`Order ${order._id} missing shipping address data`);
+      }
     });
+
     return res.status(200).json({
       message: "Orders fetched successfully",
       orders,
