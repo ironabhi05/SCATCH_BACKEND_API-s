@@ -81,12 +81,12 @@ module.exports.getUserOrders = async (req, res) => {
     logger.info(`Fetched ${orders.length} orders for user: ${req.user.email}`);
 
     // Debug: Log shipping address data for each order
-    orders.forEach((order, index) => {
-      logger.info(`Order ${index + 1} - Shipping Address:`, order.shippingAddress);
-      if (!order.shippingAddress || Object.keys(order.shippingAddress).length === 0) {
-        logger.warn(`Order ${order._id} missing shipping address data`);
-      }
-    });
+    // orders.forEach((order, index) => {
+    //   logger.info(`Order ${index + 1} - Shipping Address:`, order.shippingAddress);
+    //   if (!order.shippingAddress || Object.keys(order.shippingAddress).length === 0) {
+    //     logger.warn(`Order ${order._id} missing shipping address data`);
+    //   }
+    // });
 
     return res.status(200).json({
       message: "Orders fetched successfully",
@@ -101,34 +101,34 @@ module.exports.getUserOrders = async (req, res) => {
   }
 };
 
-// Get single order by ID
-module.exports.getOrderById = async (req, res) => {
-  try {
-    const { orderId } = req.params;
-    const userId = req.user._id;
+// // Get single order by ID
+// module.exports.getOrderById = async (req, res) => {
+//   try {
+//     const { orderId } = req.params;
+//     const userId = req.user._id;
 
-    const order = await orderModel
-      .findOne({ _id: orderId, user: userId })
-      .populate("items.product");
+//     const order = await orderModel
+//       .findOne({ _id: orderId, user: userId })
+//       .populate("items.product");
 
-    if (!order) {
-      logger.warn(`Order not found: ${orderId} for user: ${req.user.email}`);
-      return res.status(404).json({ message: "Order not found" });
-    }
+//     if (!order) {
+//       logger.warn(`Order not found: ${orderId} for user: ${req.user.email}`);
+//       return res.status(404).json({ message: "Order not found" });
+//     }
 
-    logger.info(`Order fetched: OrderID=${orderId}, User=${req.user.email}`);
+//     logger.info(`Order fetched: OrderID=${orderId}, User=${req.user.email}`);
 
-    return res.status(200).json({
-      message: "Order fetched successfully",
-      order,
-    });
-  } catch (err) {
-    logger.error(`Error fetching order by ID: ${err.stack || err.message}`);
-    return res
-      .status(500)
-      .json({ message: "Failed to fetch order", error: err.message });
-  }
-};
+//     return res.status(200).json({
+//       message: "Order fetched successfully",
+//       order,
+//     });
+//   } catch (err) {
+//     logger.error(`Error fetching order by ID: ${err.stack || err.message}`);
+//     return res
+//       .status(500)
+//       .json({ message: "Failed to fetch order", error: err.message });
+//   }
+// };
 
 // Cancel an order (only if status is pending)
 module.exports.cancelOrder = async (req, res) => {
@@ -145,38 +145,60 @@ module.exports.cancelOrder = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    const hasNonPendingItem = order.items.some(
-      (item) => item.status !== "pending"
-    );
-
-    if (hasNonPendingItem) {
+    // Check if order is already cancelled
+    if (order.status === "cancelled") {
       logger.warn(
-        `Cancel order failed - Order has non-pending items: ${orderId}`
+        `Cancel order failed - Order already cancelled: ${orderId}`
       );
       return res.status(400).json({
-        message:
-          "Cannot cancel order because one or more items are already processed",
+        message: "Order is already cancelled",
       });
     }
 
-    order.items.forEach((item) => {
-      item.status = "cancelled";
-    });
-    await order.save();
+    // Check if order has been delivered or shipped
+    if (order.status === "delivered") {
+      logger.warn(
+        `Cancel order failed - Order already delivered: ${orderId}`
+      );
+      return res.status(400).json({
+        message: "Cannot cancel order because it has already been delivered",
+      });
+    }
+
+    if (order.status === "shipped") {
+      logger.warn(
+        `Cancel order failed - Order already shipped: ${orderId}`
+      );
+      return res.status(400).json({
+        message: "Cannot cancel order because it has already been shipped. Please contact customer support.",
+      });
+    }
+
+    // Update order status to cancelled
+    const updatedOrder = await orderModel.findOneAndUpdate(
+      { _id: orderId, user: userId },
+      { status: "cancelled" },
+      { new: true } // Return the updated document
+    );
 
     logger.info(
       `Order cancelled successfully: OrderID=${orderId}, User=${req.user.email}`
     );
 
     return res.status(200).json({
+      success: true,
       message: "Order cancelled successfully",
-      order,
+      order: updatedOrder,
     });
   } catch (err) {
     logger.error(`Error cancelling order: ${err.stack || err.message}`);
     return res
       .status(500)
-      .json({ message: "Failed to cancel order", error: err.message });
+      .json({
+        success: false,
+        message: "Failed to cancel order",
+        error: err.message
+      });
   }
 };
 
@@ -210,7 +232,7 @@ module.exports.getAllOrders = async (req, res) => {
 module.exports.updateOrderStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { status, itemProductId, itemId } = req.body;
+    const { status } = req.body;
 
     const validStatuses = [
       "pending",
@@ -227,13 +249,6 @@ module.exports.updateOrderStatus = async (req, res) => {
       });
     }
 
-    if (!itemProductId && !itemId) {
-      logger.warn("Order item identifier missing for status update");
-      return res.status(400).json({
-        message: "Provide either itemProductId or itemId to update item status",
-      });
-    }
-
     const order = await orderModel.findById(orderId);
 
     if (!order) {
@@ -241,27 +256,7 @@ module.exports.updateOrderStatus = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    const orderItem = order.items.find((item) => {
-      if (itemId && item._id.toString() === itemId) {
-        return true;
-      }
-
-      if (itemProductId && item.product.toString() === itemProductId) {
-        return true;
-      }
-
-      return false;
-    });
-
-    if (!orderItem) {
-      logger.warn(
-        `Order item not found for status update: OrderID=${orderId}, ItemProductId=${itemProductId || "N/A"
-        }, ItemId=${itemId || "N/A"}`
-      );
-      return res.status(404).json({ message: "Order item not found" });
-    }
-
-    orderItem.status = status;
+    order.status = status;
     await order.save();
 
     logger.info(
@@ -271,7 +266,7 @@ module.exports.updateOrderStatus = async (req, res) => {
 
     return res.status(200).json({
       message: "Order item status updated successfully",
-      orderItem,
+      order,
     });
   } catch (err) {
     logger.error(

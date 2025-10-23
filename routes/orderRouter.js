@@ -14,8 +14,9 @@ const {
 // User routes - require authentication
 router.post("/place-order", isLoggedIn, placeOrder);
 router.get("/my-orders", isLoggedIn, getUserOrders);
-router.get("/:orderId", isLoggedIn, getOrderById);
-router.post("/:orderId/cancel", isLoggedIn, cancelOrder);
+router.post("/cancel/:orderId", isLoggedIn, cancelOrder);
+
+
 
 // Admin routes - require admin authentication
 router.get("/admin/all", isAdminLoggedIn, getAllOrders);
